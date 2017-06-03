@@ -24,7 +24,7 @@ export default function getCompiledHtmlBundle(b) {
         var cursor = new Cursor(b);
         compiledBundles.html[sig] = compileHtml(cursor);
     }
-    return compiledBundles.html[sig](b.values);
+    return compiledBundles.html[sig](b.args);
 }
 
 
@@ -58,14 +58,15 @@ export function compileHtml(cursor) {
         } 
     }
 
-    return function(values) {
+    return function(args) {
         return nodes.map(function(node) {
-            if (typeof node == 'string')
+            if (typeof node == 'string') {
                 return node;
-            else if (node instanceof Function)
-                return node(values);
-            else
-                return values[node];
+            } else if (node instanceof Function) {
+                return node(args);
+            } else {
+                return args[node + 1];
+            }
         });
     };
 }

@@ -79,17 +79,17 @@ export default function compileAttribute(cursor) {
         var staticsCollection = cursor.collectStaticsThrough([attrBounder]);
         cursor.step();      // move past closing attrBounder
         
-        return function(values) {
+        return function(args) {
             var attrValue = staticsCollection.map(function(item) {
                 if (typeof item == 'string')
                     return item;        // number is a value index
                 else
-                    return values[item];                // string is plain markup
+                    return args[item + 1];                // string is plain markup
             });
             return new CompiledHtmlAttribute(attrName, attrValue, attrBounder);
         };
     } else {
-        return function(values) {
+        return function(args) {
             return new CompiledHtmlAttribute(attrName);
         }
     }

@@ -25,14 +25,14 @@ export default function compileAttributes(cursor) {
         }
     }
     
-    return function(values) {
+    return function(args) {
         return attrs.map(function(attr) {
             if (typeof attr == 'string')
                 return attr;
             else if (attr instanceof Function)
-                return attr(values);
+                return attr(args);
             else
-                return values[attr];
+                return args[attr + 1];
         });
     };
 }

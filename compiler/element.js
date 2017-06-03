@@ -16,8 +16,8 @@ export default function compileElement(cursor) {
     var tagEnding = cursor.collectStaticsThrough(['>', '/>'], true);
     
     if (tagEnding.terminator.string == '/>') {
-        return function(values) {
-            return new CompiledHtmlElement(tagName, tagAttrs(values));
+        return function(args) {
+            return new CompiledHtmlElement(tagName, tagAttrs(args));
         };
     }  else {
         var innards = compileHtml(cursor);
@@ -25,8 +25,8 @@ export default function compileElement(cursor) {
         var closeTagName = closeTag[0].substring(2, closeTag[0].length - 1); 
         if (closeTagName != tagName)
             throw Error('Unexpected closing tag: expecting </' + tagName + '>, found </' + closeTagName + '>');
-        return function(values) {
-            return new CompiledHtmlElement(tagName, tagAttrs(values), innards(values));
+        return function(args) {
+            return new CompiledHtmlElement(tagName, tagAttrs(args), innards(args));
         };
     }
 }
