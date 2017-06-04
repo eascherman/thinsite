@@ -44,27 +44,53 @@ export default function re(arg1, arg2, arg3, arg4) {
 var currentDependent;
 var onInvalidateQueue = [];
 
+// function set(value) {
+//     if (this.value !== value) {
+//         if (Array.isArray(value))
+//             arrayFuncNotifiers(value);
+//         this.value = value;
+//         invalidate(this);
+//     }
+// }
+
 // a getterSetter that detects array changes
 export function getterSetter() {
-    var out = {
-        id: newId(),
-        dependents: {},
-        get: function get() {
-            if (currentDependent)
-                out.dependents[currentDependent.id] = currentDependent;
+    // var out = {
+    //     id: newId(),
+    //     dependents: {},
+    //     get: function get() {
+    //         if (currentDependent)
+    //             out.dependents[currentDependent.id] = currentDependent;
 
-            return out.value;
-        },
-        set: function set(value) {
-            if (out.value !== value) {
-                if (Array.isArray(value))
-                    arrayFuncNotifiers(value);
-                out.value = value;
-                invalidate(out);
-            } 
-        }
+    //         return out.value;
+    //     },
+    //     set: function set(value) {
+    //         if (out.value !== value) {
+    //             if (Array.isArray(value))
+    //                 arrayFuncNotifiers(value);
+    //             out.value = value;
+    //             invalidate(out);
+    //         } 
+    //     }
+    // };
+    var out = function get() {
+        if (currentDependent)
+            out.dependents[currentDependent.id] = currentDependent;
+
+        return out.value;
     };
-    
+    out.id = newId();
+    out.dependents = {};
+    out.get = out;
+    out.set = function set(value) {
+        if (out.value !== value) {
+            if (Array.isArray(value))
+                arrayFuncNotifiers(value);
+            out.value = value;
+            invalidate(out);
+        } 
+    };
+
     return out;
 };
 
@@ -103,34 +129,62 @@ export function arrayGetterSetter(arr) {
 
 
 export function relativeGetterSetter(getter, setter) {
-    var out = {
-        id: newId(),
-        dependents: {},
-        get: function get() {
-            if (currentDependent)
-                out.dependents[currentDependent.id] = currentDependent;
-            // use the getter if there's no valid cache
-            if (!out.cache) {
-                var oldDependent = currentDependent;
-                currentDependent = out;
-                try {
-                    out.cache = {value: getter()};
-                } catch (err) { 
-                    throw err;
-                }
-                currentDependent = oldDependent;   
+    // var out = {
+    //     id: newId(),
+    //     dependents: {},
+    //     get: function get() {
+    //         if (currentDependent)
+    //             out.dependents[currentDependent.id] = currentDependent;
+    //         // use the getter if there's no valid cache
+    //         if (!out.cache) {
+    //             var oldDependent = currentDependent;
+    //             currentDependent = out;
+    //             try {
+    //                 out.cache = {value: getter()};
+    //             } catch (err) { 
+    //                 throw err;
+    //             }
+    //             currentDependent = oldDependent;   
+    //         }
+    //         // if this is the root call, process any outstanding onInvalidate callbacks
+    //         if (!currentDependent) {
+    //             var queue = onInvalidateQueue;
+    //             onInvalidateQueue = [];
+    //             queue.forEach(function(func) {
+    //                 func();
+    //             })
+    //         }
+    //         return out.cache.value;
+    //     }
+    // };
+    
+    var out = function get() {
+        if (currentDependent)
+            get.dependents[currentDependent.id] = currentDependent;
+        // use the getter if there's no valid cache
+        if (!get.cache) {
+            var oldDependent = currentDependent;
+            currentDependent = get;
+            try {
+                get.cache = {value: getter()};
+            } catch (err) { 
+                throw err;
             }
-            // if this is the root call, process any outstanding onInvalidate callbacks
-            if (!currentDependent) {
-                var queue = onInvalidateQueue;
-                onInvalidateQueue = [];
-                queue.forEach(function(func) {
-                    func();
-                })
-            }
-            return out.cache.value;
+            currentDependent = oldDependent;   
         }
+        // if this is the root call, process any outstanding onInvalidate callbacks
+        if (!currentDependent) {
+            var queue = onInvalidateQueue;
+            onInvalidateQueue = [];
+            queue.forEach(function(func) {
+                func();
+            })
+        }
+        return get.cache.value;
     };
+    out.id = newId();
+    out.dependents = {};
+    out.get = out;
     
     if (setter)
         out.set = function set(value) {

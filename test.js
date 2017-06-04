@@ -46,15 +46,42 @@ install(content, document.body);
 
 
 
-// function timeAction(name, iterations, action) {
-//     var start = new Date();
-//     for (var i=0; i<iterations; i++) 
-//         action();
-//     var end = new Date();
-//     console.log(name + ': ' + (end - start) + 'ms');
+function timeAction(name, iterations, action) {
+    var start = new Date();
+    for (var i=0; i<iterations; i++) 
+        action();
+    var end = new Date();
+    console.log(name + ': ' + (end - start) + 'ms');
+}
+
+timeAction('nothing', 100, function() {});
+
+
+// var ll = {};
+// var arr = [];
+// for (var i=0; i<100; i++) {
+//     arr.push({int:i});
+//     ll = {
+//         int:i,
+//         next: ll.next
+//     };
 // }
 
-// timeAction('nothing', 100, function() {});
+// timeAction('array loop', 10000, function() {
+//     var res = 0;
+//     for (var i=0; i<arr.length; i++) {
+//         res += arr[i].int;
+//     }
+// });
+
+// timeAction('linked list loop', 10000, function() {
+//     var res = 0;
+//     var obj = ll;
+//     while(obj = obj.next) {
+//         res += obj.i;
+//     }
+// });
+
 
 
 
