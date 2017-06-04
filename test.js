@@ -2,6 +2,16 @@
 import {obs, install, bundle, on, map} from './exports.js';
 
 
+class MyClass {
+    constructor(message) {
+        this.message = message || 'No message entered';
+    }
+    toContent() {
+        return this.message;
+    }
+}
+
+
 var state = {};             // an object we'll attach mutable values to
 obs(state, 'text');         // let the change detector know the text property of the state object is mutable
 obs(state, 'keystroke');
@@ -28,6 +38,9 @@ var content = bundle        // the bundle template literal tag is used to create
             setTimeout(() => resolve('Three seconds have passed!'), 3000);
         })}
     </div>
+
+    <h3>Custom Object Rendering</h3>
+    ${new MyClass('this is a custom object rendering')}
     
     <h3>Keystroke Listeners</h3>
     Try pressing backspace, s, or shift-s!
@@ -46,15 +59,15 @@ install(content, document.body);
 
 
 
-function timeAction(name, iterations, action) {
-    var start = new Date();
-    for (var i=0; i<iterations; i++) 
-        action();
-    var end = new Date();
-    console.log(name + ': ' + (end - start) + 'ms');
-}
+// function timeAction(name, iterations, action) {
+//     var start = new Date();
+//     for (var i=0; i<iterations; i++) 
+//         action();
+//     var end = new Date();
+//     console.log(name + ': ' + (end - start) + 'ms');
+// }
 
-timeAction('nothing', 100, function() {});
+// timeAction('nothing', 100, function() {});
 
 
 // var ll = {};

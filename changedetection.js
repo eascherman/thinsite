@@ -44,15 +44,6 @@ export default function re(arg1, arg2, arg3, arg4) {
 var currentDependent;
 var onInvalidateQueue = [];
 
-// function set(value) {
-//     if (this.value !== value) {
-//         if (Array.isArray(value))
-//             arrayFuncNotifiers(value);
-//         this.value = value;
-//         invalidate(this);
-//     }
-// }
-
 // a getterSetter that detects array changes
 export function getterSetter() {
     // var out = {
@@ -236,19 +227,13 @@ export function alerterProperty(obj, prop) {
     var value = obj[prop];
     var gs = getterSetter();
     gs.set(value);
-    Object.defineProperty(obj, prop, {
-        get: gs.get, 
-        set: gs.set   
-    });
+    Object.defineProperty(obj, prop, gs);
     return gs;
 };
 
 
 export function relativeProperty(obj, prop, getter, setter) {
     var gs = relativeGetterSetter(getter, setter);
-    Object.defineProperty(obj, prop, {
-        get: gs.get,
-        set: gs.set
-    });
+    Object.defineProperty(obj, prop, gs);
     return gs;
 };

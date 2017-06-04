@@ -92,17 +92,11 @@ export default class HtmlLocation extends LinkedTree {
             for (var i=0; i<obj.length; i++) {
                 this.installChild(obj[i], this.host, this.namespace);
             }
-            // obj.forEach(function(o) {
-            //     this.installChild(o, this.host, this.namespace);
-            // }, this);
         } else if (obj instanceof Bundle) {
             var chtml = getCompiledHtmlBundle(obj);
             for (var i=0; i<chtml.length; i++) {
                 this.installChild(chtml[i], this.host, this.namespace);
             }
-            // chtml.forEach(function(o) {
-            //     this.installChild(o, this.host, this.namespace);
-            // }, this);
         } else if (obj instanceof CompiledHtmlElement) {
             var ns = this.namespace || obj.name === 'svg' ? 'http://www.w3.org/2000/svg' : undefined; 
             if (ns)
@@ -136,6 +130,9 @@ export default class HtmlLocation extends LinkedTree {
             fUpdate();
         } else if (obj && obj.then instanceof Function) {
             obj.then(val => this.installChild(val, this.host, this.namespace), console.error);
+        } else if (obj && obj.toContent instanceof Function) {
+            var cont = obj.toContent();     // no input of host so as not to cause confusion w/ function content mechanics
+            this.installChild(cont, this.host, this.namespace);
         } else {
             this.ele = document.createTextNode(obj.toString());
             this.host.insertBefore(this.ele, this.getElementAfter());

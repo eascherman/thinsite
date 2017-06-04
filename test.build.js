@@ -33,15 +33,6 @@ function re(arg1, arg2, arg3, arg4) {
 var currentDependent;
 var onInvalidateQueue = [];
 
-// function set(value) {
-//     if (this.value !== value) {
-//         if (Array.isArray(value))
-//             arrayFuncNotifiers(value);
-//         this.value = value;
-//         invalidate(this);
-//     }
-// }
-
 // a getterSetter that detects array changes
 function getterSetter() {
     // var out = {
@@ -213,19 +204,13 @@ function alerterProperty(obj, prop) {
     var value = obj[prop];
     var gs = getterSetter();
     gs.set(value);
-    Object.defineProperty(obj, prop, {
-        get: gs.get,
-        set: gs.set
-    });
+    Object.defineProperty(obj, prop, gs);
     return gs;
 }
 
 function relativeProperty(obj, prop, getter, setter) {
     var gs = relativeGetterSetter(getter, setter);
-    Object.defineProperty(obj, prop, {
-        get: gs.get,
-        set: gs.set
-    });
+    Object.defineProperty(obj, prop, gs);
     return gs;
 }
 
@@ -826,17 +811,11 @@ var HtmlLocation = function (_LinkedTree) {
                 for (var i = 0; i < obj.length; i++) {
                     this.installChild(obj[i], this.host, this.namespace);
                 }
-                // obj.forEach(function(o) {
-                //     this.installChild(o, this.host, this.namespace);
-                // }, this);
             } else if (obj instanceof Bundle) {
                 var chtml = getCompiledHtmlBundle(obj);
                 for (var i = 0; i < chtml.length; i++) {
                     this.installChild(chtml[i], this.host, this.namespace);
                 }
-                // chtml.forEach(function(o) {
-                //     this.installChild(o, this.host, this.namespace);
-                // }, this);
             } else if (obj instanceof CompiledHtmlElement) {
                 var ns = this.namespace || obj.name === 'svg' ? 'http://www.w3.org/2000/svg' : undefined;
                 if (ns) this.ele = document.createElementNS(ns, obj.name);else this.ele = document.createElement(obj.name);
@@ -872,6 +851,9 @@ var HtmlLocation = function (_LinkedTree) {
                 obj.then(function (val) {
                     return _this2.installChild(val, _this2.host, _this2.namespace);
                 }, console.error);
+            } else if (obj && obj.toContent instanceof Function) {
+                var cont = obj.toContent(); // no input of host so as not to cause confusion w/ function content mechanics
+                this.installChild(cont, this.host, this.namespace);
             } else {
                 this.ele = document.createTextNode(obj.toString());
                 this.host.insertBefore(this.ele, this.getElementAfter());
@@ -923,92 +905,68 @@ function install(obj, host, before) {
     return loc;
 }
 
-function on(name, callback) {
-    return function (el) {
-        return el.addEventListener(name, callback);
-    };
-}
-
-var eventNames = ['click', 'contextmenu', 'dblclick', 'mousedown', 'mouseenter', 'mouseleave', 'mousemove', 'mouseover', 'mouseout', 'mouseup',
-/*'keydown', 'keypress', 'keyup',*/
-'abort', 'load', 'scroll', 'blur', 'change', 'focus', 'focusin', 'focusout', 'input', 'invalid', 'reset', 'search', 'select', 'submit', 'drag', 'dragend', 'dragenter', 'dragleave', 'dragover', 'dragstart', 'drop', 'copy', 'cut', 'paste', 'animationend', 'animationiteration', 'animationstart', 'transitionend', 'show', 'toggle', 'wheel'];
-var evFunc = function evFunc(name) {
-    return function (action) {
+var on = (function () {
+    function on(name, callback) {
         return function (el) {
-            return el.addEventListener(name, action);
+            return el.addEventListener(name, callback);
         };
-    };
-};
-for (var i = 0; i < eventNames.length; i++) {
-    var name = eventNames[i];
-    on[name] = evFunc(name);
-}
-
-// todo: implement scroll
-on.wheel.down = function wheelDown(callback) {
-    return on.wheel(function (ev) {
-        ev.preventDefault();
-        if (ev.wheelDelta < 0) callback(ev);
-    });
-};
-on.wheel.up = function wheelUp(callback) {
-    return on.wheel(function (ev) {
-        ev.preventDefault();
-        if (ev.wheelDelta > 0) callback(ev);
-    });
-};
-
-// keystroke sugar:
-//  on.keydown.g(ev => console.log('you pressed g!'));
-//  on.keydown.ctrl.s(functionThatSavesMyStuff)(document.body);
-
-var chars;
-var otherKeys;
-function loadKeyNames(evName, evSetup) {
-    if (!chars) {
-        chars = [];
-        for (var i = 0; i < 230; i++) {
-            var char = String.fromCharCode(i);
-            if (char.length != "") chars.push(char);
-        }
     }
-    if (!otherKeys) otherKeys = {
-        //shift:16, ctrl:17, alt:18,
-        backspace: 8, tab: 9, enter: 13, pause: 19, capsLock: 20, escape: 27,
-        pageUp: 33, pageDown: 34, end: 35, home: 36, left: 37, up: 38, right: 39, down: 40,
-        insert: 45, delete: 46,
-        leftWindow: 91, rightWindow: 92, select: 93,
-        f1: 112, f2: 113, f3: 114, f4: 115, f5: 116, f6: 117, f7: 118, f8: 119, f9: 120, f10: 121, f11: 122, f12: 123,
-        numLock: 144, scrollLock: 145
-    };
 
-    Object.keys(otherKeys).forEach(function (keyName) {
-        evSetup[keyName] = function (callback) {
-            return evSetup(function (ev) {
-                if (otherKeys[keyName] === ev.which) {
-                    ev.preventDefault();
-                    callback(ev);
-                }
-            });
-        };
-    });
-
-    function setupChars(obj, test) {
-        chars.forEach(function (char) {
-            obj[char] = function (callback) {
-                return evSetup(function (ev) {
-                    if ((!test || test(ev)) && String.fromCharCode(ev.which).toLowerCase() === char) {
-                        ev.preventDefault();
-                        callback(ev);
-                    }
-                });
+    var eventNames = ['click', 'contextmenu', 'dblclick', 'mousedown', 'mouseenter', 'mouseleave', 'mousemove', 'mouseover', 'mouseout', 'mouseup',
+    /*'keydown', 'keypress', 'keyup',*/ // handled elsewhere
+    'abort', 'load', 'scroll', 'blur', 'change', 'focus', 'focusin', 'focusout', 'input', 'invalid', 'reset', 'search', 'select', 'submit', 'drag', 'dragend', 'dragenter', 'dragleave', 'dragover', 'dragstart', 'drop', 'copy', 'cut', 'paste', 'animationend', 'animationiteration', 'animationstart', 'transitionend', 'show', 'toggle', 'wheel'];
+    var evFunc = function evFunc(name) {
+        return function (action) {
+            return function (el) {
+                return el.addEventListener(name, action);
             };
-        });
+        };
+    };
+    for (var i = 0; i < eventNames.length; i++) {
+        var name = eventNames[i];
+        on[name] = evFunc(name);
     }
 
-    function setupModKey(key, test) {
-        lazyProperty(evSetup, key, function () {
-            var out = function out(callback) {
+    // todo: implement scroll
+    on.wheel.down = function wheelDown(callback) {
+        return on.wheel(function (ev) {
+            ev.preventDefault();
+            if (ev.wheelDelta < 0) callback(ev);
+        });
+    };
+    on.wheel.up = function wheelUp(callback) {
+        return on.wheel(function (ev) {
+            ev.preventDefault();
+            if (ev.wheelDelta > 0) callback(ev);
+        });
+    };
+
+    // keystroke sugar:
+    //  on.keydown.g(ev => console.log('you pressed g!'));
+    //  on.keydown.ctrl.s(functionThatSavesMyStuff)(document.body);
+
+    var chars;
+    var otherKeys;
+    function loadKeyNames(evName, evSetup) {
+        if (!chars) {
+            chars = [];
+            for (var i = 0; i < 230; i++) {
+                var char = String.fromCharCode(i);
+                if (char.length != "") chars.push(char);
+            }
+        }
+        if (!otherKeys) otherKeys = {
+            //shift:16, ctrl:17, alt:18,
+            backspace: 8, tab: 9, enter: 13, pause: 19, capsLock: 20, escape: 27,
+            pageUp: 33, pageDown: 34, end: 35, home: 36, left: 37, up: 38, right: 39, down: 40,
+            insert: 45, delete: 46,
+            leftWindow: 91, rightWindow: 92, select: 93,
+            f1: 112, f2: 113, f3: 114, f4: 115, f5: 116, f6: 117, f7: 118, f8: 119, f9: 120, f10: 121, f11: 122, f12: 123,
+            numLock: 144, scrollLock: 145
+        };
+
+        Object.keys(otherKeys).forEach(function (keyName) {
+            evSetup[keyName] = function (callback) {
                 return evSetup(function (ev) {
                     if (otherKeys[keyName] === ev.which) {
                         ev.preventDefault();
@@ -1016,52 +974,80 @@ function loadKeyNames(evName, evSetup) {
                     }
                 });
             };
-            setupChars(out, test);
+        });
+
+        function setupChars(obj, test) {
+            chars.forEach(function (char) {
+                obj[char] = function (callback) {
+                    return evSetup(function (ev) {
+                        if ((!test || test(ev)) && String.fromCharCode(ev.which).toLowerCase() === char) {
+                            ev.preventDefault();
+                            callback(ev);
+                        }
+                    });
+                };
+            });
+        }
+
+        function setupModKey(key, test) {
+            lazyProperty(evSetup, key, function () {
+                var out = function out(callback) {
+                    return evSetup(function (ev) {
+                        if (otherKeys[keyName] === ev.which) {
+                            ev.preventDefault();
+                            callback(ev);
+                        }
+                    });
+                };
+                setupChars(out, test);
+                return out;
+            });
+        }
+
+        setupChars(evSetup);
+        setupModKey('ctrl', function (ev) {
+            return ev.ctrlKey || ev.metaKey;
+        });
+        setupModKey('shift', function (ev) {
+            return ev.shiftKey;
+        });
+        setupModKey('alt', function (ev) {
+            return ev.altKey;
+        });
+    }
+
+    function lazyProperty(obj, prop, initialize) {
+        if (Object.defineProperty) {
+            Object.defineProperty(obj, prop, {
+                enumerable: true,
+                configurable: true,
+                get: function get() {
+                    var value = initialize.apply(this);
+                    Object.defineProperty(obj, prop, {
+                        enumerable: true,
+                        configurable: true,
+                        value: value
+                    });
+                    return value;
+                }
+            });
+        } else {
+            obj[prop] = initialize.apply(obj);
+        }
+    }
+
+    ['keydown', 'keyup', 'keypress'].forEach(function (evName) {
+        lazyProperty(on, evName, function () {
+            var out = function out(callback) {
+                return on(evName, callback);
+            };
+            loadKeyNames(evName, out);
             return out;
         });
-    }
+    });
 
-    setupChars(evSetup);
-    setupModKey('ctrl', function (ev) {
-        return ev.ctrlKey || ev.metaKey;
-    });
-    setupModKey('shift', function (ev) {
-        return ev.shiftKey;
-    });
-    setupModKey('alt', function (ev) {
-        return ev.altKey;
-    });
-}
-
-function lazyProperty(obj, prop, initialize) {
-    if (Object.defineProperty) {
-        Object.defineProperty(obj, prop, {
-            enumerable: true,
-            configurable: true,
-            get: function get() {
-                var value = initialize.apply(this);
-                Object.defineProperty(obj, prop, {
-                    enumerable: true,
-                    configurable: true,
-                    value: value
-                });
-                return value;
-            }
-        });
-    } else {
-        obj[prop] = initialize.apply(obj);
-    }
-}
-
-['keydown', 'keyup', 'keypress'].forEach(function (evName) {
-    lazyProperty(on, evName, function () {
-        var out = function out(callback) {
-            return on(evName, callback);
-        };
-        loadKeyNames(evName, out);
-        return out;
-    });
-});
+    return on;
+})();
 
 function eventTrigger(thiz) {
     var counter = 1;
@@ -1200,8 +1186,24 @@ function map(arr, transform) {
     return arrInstall(bindMap(arr, transform));
 }
 
-var _templateObject = taggedTemplateLiteral(['<h3>Text: ', '</h3>\n    <input type="text" ', ' />\n\n    <h3>Array</h3>\n    <ol>\n        ', '\n    </ol>\n    \n    <h3>Promise</h3>\n    <div>\n        ', '\n    </div>\n    \n    <h3>Keystroke Listeners</h3>\n    Try pressing backspace, s, or shift-s!\n    <div>', '</div>'], ['<h3>Text: ', '</h3>\n    <input type="text" ', ' />\n\n    <h3>Array</h3>\n    <ol>\n        ', '\n    </ol>\n    \n    <h3>Promise</h3>\n    <div>\n        ', '\n    </div>\n    \n    <h3>Keystroke Listeners</h3>\n    Try pressing backspace, s, or shift-s!\n    <div>', '</div>']);
+var _templateObject = taggedTemplateLiteral(['<h3>Text: ', '</h3>\n    <input type="text" ', ' />\n\n    <h3>Array</h3>\n    <ol>\n        ', '\n    </ol>\n    \n    <h3>Promise</h3>\n    <div>\n        ', '\n    </div>\n\n    <h3>Custom Object Rendering</h3>\n    ', '\n    \n    <h3>Keystroke Listeners</h3>\n    Try pressing backspace, s, or shift-s!\n    <div>', '</div>'], ['<h3>Text: ', '</h3>\n    <input type="text" ', ' />\n\n    <h3>Array</h3>\n    <ol>\n        ', '\n    </ol>\n    \n    <h3>Promise</h3>\n    <div>\n        ', '\n    </div>\n\n    <h3>Custom Object Rendering</h3>\n    ', '\n    \n    <h3>Keystroke Listeners</h3>\n    Try pressing backspace, s, or shift-s!\n    <div>', '</div>']);
 var _templateObject2 = taggedTemplateLiteral(['<li>\n                <button ', '>+</button>\n                <button ', '>-</button>\n                ', '\n            </li>'], ['<li>\n                <button ', '>+</button>\n                <button ', '>-</button>\n                ', '\n            </li>']);
+
+var MyClass = function () {
+    function MyClass(message) {
+        classCallCheck(this, MyClass);
+
+        this.message = message || 'No message entered';
+    }
+
+    createClass(MyClass, [{
+        key: 'toContent',
+        value: function toContent() {
+            return this.message;
+        }
+    }]);
+    return MyClass;
+}();
 
 var state = {}; // an object we'll attach mutable values to
 re(state, 'text'); // let the change detector know the text property of the state object is mutable
@@ -1222,7 +1224,7 @@ var content = bundle // the bundle template literal tag is used to create markup
     setTimeout(function () {
         return resolve('Three seconds have passed!');
     }, 3000);
-}), function () {
+}), new MyClass('this is a custom object rendering'), function () {
     return state.keystroke && 'You pressed ' + state.keystroke + '!';
 });
 
@@ -1241,15 +1243,16 @@ on.keydown.shift.s(function () {
 
 install(content, document.body);
 
-function timeAction(name, iterations, action) {
-    var start = new Date();
-    for (var i = 0; i < iterations; i++) {
-        action();
-    }var end = new Date();
-    console.log(name + ': ' + (end - start) + 'ms');
-}
+// function timeAction(name, iterations, action) {
+//     var start = new Date();
+//     for (var i=0; i<iterations; i++) 
+//         action();
+//     var end = new Date();
+//     console.log(name + ': ' + (end - start) + 'ms');
+// }
 
-timeAction('nothing', 100, function () {});
+// timeAction('nothing', 100, function() {});
+
 
 // var ll = {};
 // var arr = [];
@@ -1396,3 +1399,4 @@ timeAction('nothing', 100, function () {});
 // });
 
 })));
+//# sourceMappingURL=test.build.js.map

@@ -5,6 +5,7 @@ import babel from 'rollup-plugin-babel';
 export default {
   entry: 'test.js',
   format: 'umd',
+  sourceMap: true,
   plugins: [
     resolve(),
     babel({
