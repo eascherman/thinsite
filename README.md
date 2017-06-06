@@ -52,7 +52,7 @@ import {obs, install, bundle, on, map} from './node_modules/thinsite/exports.js'
 
 Use as a script:
 ```html
-<script src="node_modules/thinsite/standalone.umd.js"></script>
+<script src="node_modules/thinsite/standalone/all.umd.js"></script>
 ```
 Note: functions are attached to a single global "ts" variable when used via script tag so as not to pollute the window
 
