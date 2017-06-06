@@ -45,7 +45,7 @@ First, add the files to your project
 npm install thinsite --save
 ```
 
-Use via import:
+Use via import (recommended):
 ```javascript
 import {obs, install, bundle, on, map} from './node_modules/thinsite/exports.js';
 ```

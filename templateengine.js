@@ -1,5 +1,5 @@
 
-import HtmlLocation from './htmllocation.js';
+import HtmlLocation from './locations/htmllocation.js';
 
 
 export default function install(obj, host, before) {

@@ -35,20 +35,37 @@ var onInvalidateQueue = [];
 
 // a getterSetter that detects array changes
 function getterSetter() {
-    var out = {
-        id: newId(),
-        dependents: {},
-        get: function get() {
-            if (currentDependent) out.dependents[currentDependent.id] = currentDependent;
+    // var out = {
+    //     id: newId(),
+    //     dependents: {},
+    //     get: function get() {
+    //         if (currentDependent)
+    //             out.dependents[currentDependent.id] = currentDependent;
 
-            return out.value;
-        },
-        set: function set(value) {
-            if (out.value !== value) {
-                if (Array.isArray(value)) arrayFuncNotifiers(value);
-                out.value = value;
-                invalidate(out);
-            }
+    //         return out.value;
+    //     },
+    //     set: function set(value) {
+    //         if (out.value !== value) {
+    //             if (Array.isArray(value))
+    //                 arrayFuncNotifiers(value);
+    //             out.value = value;
+    //             invalidate(out);
+    //         } 
+    //     }
+    // };
+    var out = function get() {
+        if (currentDependent) out.dependents[currentDependent.id] = currentDependent;
+
+        return out.value;
+    };
+    out.id = newId();
+    out.dependents = {};
+    out.get = out;
+    out.set = function set(value) {
+        if (out.value !== value) {
+            if (Array.isArray(value)) arrayFuncNotifiers(value);
+            out.value = value;
+            invalidate(out);
         }
     };
 
@@ -87,33 +104,61 @@ function arrayGetterSetter(arr) {
 }
 
 function relativeGetterSetter(getter, setter) {
-    var out = {
-        id: newId(),
-        dependents: {},
-        get: function get() {
-            if (currentDependent) out.dependents[currentDependent.id] = currentDependent;
-            // use the getter if there's no valid cache
-            if (!out.cache) {
-                var oldDependent = currentDependent;
-                currentDependent = out;
-                try {
-                    out.cache = { value: getter() };
-                } catch (err) {
-                    throw err;
-                }
-                currentDependent = oldDependent;
+    // var out = {
+    //     id: newId(),
+    //     dependents: {},
+    //     get: function get() {
+    //         if (currentDependent)
+    //             out.dependents[currentDependent.id] = currentDependent;
+    //         // use the getter if there's no valid cache
+    //         if (!out.cache) {
+    //             var oldDependent = currentDependent;
+    //             currentDependent = out;
+    //             try {
+    //                 out.cache = {value: getter()};
+    //             } catch (err) { 
+    //                 throw err;
+    //             }
+    //             currentDependent = oldDependent;   
+    //         }
+    //         // if this is the root call, process any outstanding onInvalidate callbacks
+    //         if (!currentDependent) {
+    //             var queue = onInvalidateQueue;
+    //             onInvalidateQueue = [];
+    //             queue.forEach(function(func) {
+    //                 func();
+    //             })
+    //         }
+    //         return out.cache.value;
+    //     }
+    // };
+
+    var out = function get() {
+        if (currentDependent) get.dependents[currentDependent.id] = currentDependent;
+        // use the getter if there's no valid cache
+        if (!get.cache) {
+            var oldDependent = currentDependent;
+            currentDependent = get;
+            try {
+                get.cache = { value: getter() };
+            } catch (err) {
+                throw err;
             }
-            // if this is the root call, process any outstanding onInvalidate callbacks
-            if (!currentDependent) {
-                var queue = onInvalidateQueue;
-                onInvalidateQueue = [];
-                queue.forEach(function (func) {
-                    func();
-                });
-            }
-            return out.cache.value;
+            currentDependent = oldDependent;
         }
+        // if this is the root call, process any outstanding onInvalidate callbacks
+        if (!currentDependent) {
+            var queue = onInvalidateQueue;
+            onInvalidateQueue = [];
+            queue.forEach(function (func) {
+                func();
+            });
+        }
+        return get.cache.value;
     };
+    out.id = newId();
+    out.dependents = {};
+    out.get = out;
 
     if (setter) out.set = function set(value) {
         setter(value);
@@ -159,19 +204,13 @@ function alerterProperty(obj, prop) {
     var value = obj[prop];
     var gs = getterSetter();
     gs.set(value);
-    Object.defineProperty(obj, prop, {
-        get: gs.get,
-        set: gs.set
-    });
+    Object.defineProperty(obj, prop, gs);
     return gs;
 }
 
 function relativeProperty(obj, prop, getter, setter) {
     var gs = relativeGetterSetter(getter, setter);
-    Object.defineProperty(obj, prop, {
-        get: gs.get,
-        set: gs.set
-    });
+    Object.defineProperty(obj, prop, gs);
     return gs;
 }
 
@@ -241,6 +280,25 @@ var possibleConstructorReturn = function (self, call) {
   return call && (typeof call === "object" || typeof call === "function") ? call : self;
 };
 
+
+
+
+
+
+
+
+
+var taggedTemplateLiteral = function (strings, raw) {
+  return Object.freeze(Object.defineProperties(strings, {
+    raw: {
+      value: Object.freeze(raw)
+    }
+  }));
+};
+
+// liked a linked list but it can have a tree of children as well
+// used to manage locations of content in the DOM
+
 var LinkedTree = function () {
     function LinkedTree(parent) {
         classCallCheck(this, LinkedTree);
@@ -301,17 +359,15 @@ var LinkedTree = function () {
     return LinkedTree;
 }();
 
-function Bundle(strings, values) {
+function Bundle(args) {
+    this.args = args;
+    var strings = args[0];
     if (!(strings instanceof Array)) throw Error('Invalid bundle call');
     this.strings = strings;
-    this.values = values;
 }
 
-function bundle(strings) {
-    var values = [];
-    for (var i = 1; i < arguments.length; i++) {
-        values.push(arguments[i]);
-    }return new Bundle(strings, values);
+function bundle() {
+    return new Bundle(arguments);
 }
 
 var CompiledHtmlAttribute = function () {
@@ -395,15 +451,15 @@ function compileAttribute(cursor) {
         var staticsCollection = cursor.collectStaticsThrough([attrBounder]);
         cursor.step(); // move past closing attrBounder
 
-        return function (values) {
+        return function (args) {
             var attrValue = staticsCollection.map(function (item) {
                 if (typeof item == 'string') return item; // number is a value index
-                else return values[item]; // string is plain markup
+                else return args[item + 1]; // string is plain markup
             });
             return new CompiledHtmlAttribute(attrName, attrValue, attrBounder);
         };
     } else {
-        return function (values) {
+        return function (args) {
             return new CompiledHtmlAttribute(attrName);
         };
     }
@@ -431,9 +487,9 @@ function compileAttributes(cursor) {
         }
     }
 
-    return function (values) {
+    return function (args) {
         return attrs.map(function (attr) {
-            if (typeof attr == 'string') return attr;else if (attr instanceof Function) return attr(values);else return values[attr];
+            if (typeof attr == 'string') return attr;else if (attr instanceof Function) return attr(args);else return args[attr + 1];
         });
     };
 }
@@ -451,16 +507,16 @@ function compileElement(cursor) {
     var tagEnding = cursor.collectStaticsThrough(['>', '/>'], true);
 
     if (tagEnding.terminator.string == '/>') {
-        return function (values) {
-            return new CompiledHtmlElement(tagName, tagAttrs(values));
+        return function (args) {
+            return new CompiledHtmlElement(tagName, tagAttrs(args));
         };
     } else {
         var innards = compileHtml(cursor);
         var closeTag = cursor.collectStaticsThrough(['>'], true);
         var closeTagName = closeTag[0].substring(2, closeTag[0].length - 1);
         if (closeTagName != tagName) throw Error('Unexpected closing tag: expecting </' + tagName + '>, found </' + closeTagName + '>');
-        return function (values) {
-            return new CompiledHtmlElement(tagName, tagAttrs(values), innards(values));
+        return function (args) {
+            return new CompiledHtmlElement(tagName, tagAttrs(args), innards(args));
         };
     }
 }
@@ -484,7 +540,7 @@ function Cursor(b) {
     };
 
     this.thisItem = function () {
-        if (charCursor == -1) return b.values[stringCursor - 1];else return this.thisChar();
+        if (charCursor == -1) return b.args[stringCursor];else return this.thisChar();
     };
 
     this.isComplete = function () {
@@ -541,7 +597,7 @@ function Cursor(b) {
             } else {
                 var piece = thisString().substring(charCursor);
                 if (piece.length > 0) out.push(piece);
-                if (stringCursor < b.values.length) out.push(stringCursor);
+                if (stringCursor < b.args.length - 1) out.push(stringCursor);
                 charCursor = 0;
                 stringCursor++;
             }
@@ -570,7 +626,7 @@ function getCompiledHtmlBundle(b) {
         var cursor = new Cursor(b);
         compiledBundles.html[sig] = compileHtml(cursor);
     }
-    return compiledBundles.html[sig](b.values);
+    return compiledBundles.html[sig](b.args);
 }
 
 function compileHtml(cursor) {
@@ -603,9 +659,15 @@ function compileHtml(cursor) {
         }
     }
 
-    return function (values) {
+    return function (args) {
         return nodes.map(function (node) {
-            if (typeof node == 'string') return node;else if (node instanceof Function) return node(values);else return values[node];
+            if (typeof node == 'string') {
+                return node;
+            } else if (node instanceof Function) {
+                return node(args);
+            } else {
+                return args[node + 1];
+            }
         });
     };
 }
@@ -737,6 +799,8 @@ var HtmlLocation = function (_LinkedTree) {
     }, {
         key: 'install',
         value: function install(obj) {
+            var _this2 = this;
+
             // installs the input item in this location
             this.clear();
             this.installedContent = obj; // todo: remove - testing
@@ -747,14 +811,14 @@ var HtmlLocation = function (_LinkedTree) {
                 this.ele = document.createTextNode(obj);
                 this.host.insertBefore(this.ele, this.getElementAfter());
             } else if (Array.isArray(obj)) {
-                obj.forEach(function (o) {
-                    this.installChild(o, this.host, this.namespace);
-                }, this);
+                for (var i = 0; i < obj.length; i++) {
+                    this.installChild(obj[i], this.host, this.namespace);
+                }
             } else if (obj instanceof Bundle) {
                 var chtml = getCompiledHtmlBundle(obj);
-                chtml.forEach(function (o) {
-                    this.installChild(o, this.host, this.namespace);
-                }, this);
+                for (var i = 0; i < chtml.length; i++) {
+                    this.installChild(chtml[i], this.host, this.namespace);
+                }
             } else if (obj instanceof CompiledHtmlElement) {
                 var ns = this.namespace || obj.name === 'svg' ? 'http://www.w3.org/2000/svg' : undefined;
                 if (ns) this.ele = document.createElementNS(ns, obj.name);else this.ele = document.createElement(obj.name);
@@ -769,9 +833,10 @@ var HtmlLocation = function (_LinkedTree) {
                 this.host.insertBefore(this.ele, this.getElementAfter());
             } else if (obj instanceof Element) {
                 var parent = obj.parentElement;
-                if (parent)
-                    //throw Error('Cannot install an Element in multiple locations');
+                if (parent) {
+                    console.log('Element removed from one location and placed in another by install (DOM elements cannot be in multiple places at once)');
                     parent.removeChild(obj);
+                }
                 this.ele = obj;
                 this.host.insertBefore(this.ele, this.getElementAfter());
             } else if (obj instanceof Function) {
@@ -785,10 +850,17 @@ var HtmlLocation = function (_LinkedTree) {
                     val = obj(thiz.host, thiz);
                 }, fUpdate);
                 fUpdate();
+            } else if (obj && obj.then instanceof Function) {
+                obj.then(function (val) {
+                    return _this2.installChild(val, _this2.host, _this2.namespace);
+                }, console.error);
+            } else if (obj && obj.toContent instanceof Function) {
+                var cont = obj.toContent(); // no input of host so as not to cause confusion w/ function content mechanics
+                this.installChild(cont, this.host, this.namespace);
             } else {
                 this.ele = document.createTextNode(obj.toString());
                 this.host.insertBefore(this.ele, this.getElementAfter());
-                console.log('Unexpected content type - using toString');
+                console.log('Unexpected content type - using toString'); // todo: remove?
             }
 
             this.occupant = obj;
@@ -836,120 +908,68 @@ function install(obj, host, before) {
     return loc;
 }
 
-function on(name, callback) {
-    return function (el) {
-        return el.addEventListener(name, callback);
-    };
-}
-
-['click', 'dblclick', 'wheel',
-//'keydown', 'keyup',
-'input', 'focus', 'blur', 'drag', 'dragstart', 'dragover', 'dragstop', 'drop', 'mousedown', 'mouseup', 'mouseenter', 'mouseleave', 'mousemove', 'mouseout'].forEach(function (eventName) {
-    on[eventName] = function (callback) {
-        return on(eventName, callback);
-    };
-});
-
-on.wheel.down = function wheelDown(callback) {
-    return on.wheel(function (ev) {
-        ev.preventDefault();
-        if (ev.wheelDelta < 0) callback(ev);
-    });
-};
-on.wheel.up = function wheelUp(callback) {
-    return on.wheel(function (ev) {
-        ev.preventDefault();
-        if (ev.wheelDelta > 0) callback(ev);
-    });
-};
-
-// keystroke sugar:
-//  on.keydown.g(ev => console.log('you pressed g!'));
-//  on.keydown.ctrl.s(functionThatSavesMyStuff)(document.body);
-
-var chars;
-var otherKeys;
-function loadKeyNames(evName, evSetup) {
-    if (!chars) {
-        chars = [];
-        for (var i = 0; i < 230; i++) {
-            var char = String.fromCharCode(i);
-            if (char.length != "") chars.push(char);
-        }
-    }
-    if (!otherKeys) otherKeys = {
-        //shift:16, ctrl:17, alt:18,
-        backspace: 8, tab: 9, enter: 13, pause: 19, capsLock: 20, escape: 27,
-        pageUp: 33, pageDown: 34, end: 35, home: 36, left: 37, up: 38, right: 39, down: 40,
-        insert: 45, delete: 46,
-        leftWindow: 91, rightWindow: 92, select: 93,
-        f1: 112, f2: 113, f3: 114, f4: 115, f5: 116, f6: 117, f7: 118, f8: 119, f9: 120, f10: 121, f11: 122, f12: 123,
-        numLock: 144, scrollLock: 145
-    };
-
-    Object.keys(otherKeys).forEach(function (keyName) {
-        evSetup[keyName] = function (callback) {
-            return evSetup(function (ev) {
-                if (otherKeys[keyName] === ev.which) {
-                    ev.preventDefault();
-                    callback(ev);
-                }
-            });
+var on = (function () {
+    function on(name, callback) {
+        return function (el) {
+            return el.addEventListener(name, callback);
         };
-    });
-
-    // chars.forEach(function(char) {
-    //     evSetup[char] = function(callback) { 
-    //         return evSetup(function(ev) {
-    //             if (String.fromCharCode(ev.which).toLowerCase() === char) {
-    //                 ev.preventDefault();
-    //                 callback(ev); 
-    //             }
-    //         });
-    //     };
-
-    //     evSetup.ctrl[char] = function(callback) { 
-    //         return evSetup(function(ev) {
-    //             if ((ev.ctrlKey || ev.metaKey) && String.fromCharCode(ev.which).toLowerCase() === char) {
-    //                 ev.preventDefault();
-    //                 callback(ev); 
-    //             }
-    //         });
-    //     };
-    //     evSetup.shift[char] = function(callback) { 
-    //         return evSetup(function(ev) {
-    //             if (ev.shiftKey && String.fromCharCode(ev.which).toLowerCase() === char) {
-    //                 ev.preventDefault();
-    //                 callback(ev); 
-    //             }
-    //         });
-    //     };
-    //     evSetup.alt[char] = function(callback) { 
-    //         return evSetup(function(ev) {
-    //             if (ev.altKey && String.fromCharCode(ev.which).toLowerCase() === char) {
-    //                 ev.preventDefault();
-    //                 callback(ev); 
-    //             }
-    //         });
-    //     };
-    // });
-
-    function setupChars(obj, test) {
-        chars.forEach(function (char) {
-            obj[char] = function (callback) {
-                return evSetup(function (ev) {
-                    if ((!test || test(ev)) && String.fromCharCode(ev.which).toLowerCase() === char) {
-                        ev.preventDefault();
-                        callback(ev);
-                    }
-                });
-            };
-        });
     }
 
-    function setupModKey(key, test) {
-        lazyProperty(evSetup, key, function () {
-            var out = function out(callback) {
+    var eventNames = ['click', 'contextmenu', 'dblclick', 'mousedown', 'mouseenter', 'mouseleave', 'mousemove', 'mouseover', 'mouseout', 'mouseup',
+    /*'keydown', 'keypress', 'keyup',*/ // handled elsewhere
+    'abort', 'load', 'scroll', 'blur', 'change', 'focus', 'focusin', 'focusout', 'input', 'invalid', 'reset', 'search', 'select', 'submit', 'drag', 'dragend', 'dragenter', 'dragleave', 'dragover', 'dragstart', 'drop', 'copy', 'cut', 'paste', 'animationend', 'animationiteration', 'animationstart', 'transitionend', 'show', 'toggle', 'wheel'];
+    var evFunc = function evFunc(name) {
+        return function (action) {
+            return function (el) {
+                return el.addEventListener(name, action);
+            };
+        };
+    };
+    for (var i = 0; i < eventNames.length; i++) {
+        var name = eventNames[i];
+        on[name] = evFunc(name);
+    }
+
+    // todo: implement scroll
+    on.wheel.down = function wheelDown(callback) {
+        return on.wheel(function (ev) {
+            ev.preventDefault();
+            if (ev.wheelDelta < 0) callback(ev);
+        });
+    };
+    on.wheel.up = function wheelUp(callback) {
+        return on.wheel(function (ev) {
+            ev.preventDefault();
+            if (ev.wheelDelta > 0) callback(ev);
+        });
+    };
+
+    // keystroke sugar:
+    //  on.keydown.g(ev => console.log('you pressed g!'));
+    //  on.keydown.ctrl.s(functionThatSavesMyStuff)(document.body);
+
+    var chars;
+    var otherKeys;
+    function loadKeyNames(evName, evSetup) {
+        if (!chars) {
+            chars = [];
+            for (var i = 0; i < 230; i++) {
+                var char = String.fromCharCode(i);
+                if (char.length != "") chars.push(char);
+            }
+        }
+        if (!otherKeys) otherKeys = {
+            //shift:16, ctrl:17, alt:18,
+            backspace: 8, tab: 9, enter: 13, pause: 19, capsLock: 20, escape: 27,
+            pageUp: 33, pageDown: 34, end: 35, home: 36, left: 37, up: 38, right: 39, down: 40,
+            insert: 45, delete: 46,
+            leftWindow: 91, rightWindow: 92, select: 93,
+            f1: 112, f2: 113, f3: 114, f4: 115, f5: 116, f6: 117, f7: 118, f8: 119, f9: 120, f10: 121, f11: 122, f12: 123,
+            numLock: 144, scrollLock: 145
+        };
+
+        Object.keys(otherKeys).forEach(function (keyName) {
+            evSetup[keyName] = function (callback) {
                 return evSetup(function (ev) {
                     if (otherKeys[keyName] === ev.which) {
                         ev.preventDefault();
@@ -957,52 +977,80 @@ function loadKeyNames(evName, evSetup) {
                     }
                 });
             };
-            setupChars(out, test);
+        });
+
+        function setupChars(obj, test) {
+            chars.forEach(function (char) {
+                obj[char] = function (callback) {
+                    return evSetup(function (ev) {
+                        if ((!test || test(ev)) && String.fromCharCode(ev.which).toLowerCase() === char) {
+                            ev.preventDefault();
+                            callback(ev);
+                        }
+                    });
+                };
+            });
+        }
+
+        function setupModKey(key, test) {
+            lazyProperty(evSetup, key, function () {
+                var out = function out(callback) {
+                    return evSetup(function (ev) {
+                        if (otherKeys[keyName] === ev.which) {
+                            ev.preventDefault();
+                            callback(ev);
+                        }
+                    });
+                };
+                setupChars(out, test);
+                return out;
+            });
+        }
+
+        setupChars(evSetup);
+        setupModKey('ctrl', function (ev) {
+            return ev.ctrlKey || ev.metaKey;
+        });
+        setupModKey('shift', function (ev) {
+            return ev.shiftKey;
+        });
+        setupModKey('alt', function (ev) {
+            return ev.altKey;
+        });
+    }
+
+    function lazyProperty(obj, prop, initialize) {
+        if (Object.defineProperty) {
+            Object.defineProperty(obj, prop, {
+                enumerable: true,
+                configurable: true,
+                get: function get() {
+                    var value = initialize.apply(this);
+                    Object.defineProperty(obj, prop, {
+                        enumerable: true,
+                        configurable: true,
+                        value: value
+                    });
+                    return value;
+                }
+            });
+        } else {
+            obj[prop] = initialize.apply(obj);
+        }
+    }
+
+    ['keydown', 'keyup', 'keypress'].forEach(function (evName) {
+        lazyProperty(on, evName, function () {
+            var out = function out(callback) {
+                return on(evName, callback);
+            };
+            loadKeyNames(evName, out);
             return out;
         });
-    }
+    });
 
-    setupChars(evSetup);
-    setupModKey(evSetup, 'ctrl', function (ev) {
-        return ev.ctrlKey || ev.metaKey;
-    });
-    setupModKey(evSetup, 'shift', function (ev) {
-        return ev.shiftKey;
-    });
-    setupModKey(evSetup, 'alt', function (ev) {
-        return ev.altKey;
-    });
-}
-
-function lazyProperty(obj, prop, initialize) {
-    if (Object.defineProperty) {
-        Object.defineProperty(obj, prop, {
-            enumerable: true,
-            configurable: true,
-            get: function get() {
-                var value = initialize.apply(this);
-                Object.defineProperty(obj, prop, {
-                    enumerable: true,
-                    configurable: true,
-                    value: value
-                });
-                return value;
-            }
-        });
-    } else {
-        obj[prop] = initialize.apply(obj);
-    }
-}
-
-['keydown', 'keyup'].forEach(function (evName) {
-    lazyProperty(on, evName, function () {
-        var out = function out(callback) {
-            return on(evName, callback);
-        };
-        loadKeyNames(evName, out);
-        return out;
-    });
-});
+    return on;
+})();
 
 function eventTrigger(thiz) {
     var counter = 1;
@@ -1141,12 +1189,59 @@ function map(arr, transform) {
     return arrInstall(bindMap(arr, transform));
 }
 
-var ts = re;
-window.ts = ts;
-ts.obs = re;
-ts.install = install;
-ts.bundle = bundle;
-ts.on = on;
-ts.map = map;
+var _templateObject = taggedTemplateLiteral(['<h3>Text: ', '</h3>\n    <input type="text" ', ' />\n\n    <h3>Array</h3>\n    <ol>\n        ', '\n    </ol>\n    \n    <h3>Promise</h3>\n    <div>\n        ', '\n    </div>\n\n    <h3>Custom Object Rendering</h3>\n    ', '\n    \n    <h3>Keystroke Listeners</h3>\n    Try pressing backspace, s, or shift-s!\n    <div>', '</div>'], ['<h3>Text: ', '</h3>\n    <input type="text" ', ' />\n\n    <h3>Array</h3>\n    <ol>\n        ', '\n    </ol>\n    \n    <h3>Promise</h3>\n    <div>\n        ', '\n    </div>\n\n    <h3>Custom Object Rendering</h3>\n    ', '\n    \n    <h3>Keystroke Listeners</h3>\n    Try pressing backspace, s, or shift-s!\n    <div>', '</div>']);
+var _templateObject2 = taggedTemplateLiteral(['<li>\n                <button ', '>+</button>\n                <button ', '>-</button>\n                ', '\n            </li>'], ['<li>\n                <button ', '>+</button>\n                <button ', '>-</button>\n                ', '\n            </li>']);
+
+var MyClass = function () {
+    function MyClass(message) {
+        classCallCheck(this, MyClass);
+
+        this.message = message || 'No message entered';
+    }
+
+    createClass(MyClass, [{
+        key: 'toContent',
+        value: function toContent() {
+            return this.message;
+        }
+    }]);
+    return MyClass;
+}();
+
+var state = {}; // an object we'll attach mutable values to
+re(state, 'text'); // let the change detector know the text property of the state object is mutable
+re(state, 'keystroke');
+
+var content = bundle // the bundle template literal tag is used to create markup content
+(_templateObject, function () {
+    return state.text;
+}, on.input(function (ev) {
+    return state.text = ev.target.value;
+}), map([1, 2, 3], function (n, i, arr) {
+    return bundle(_templateObject2, on.click(function (ev) {
+        return arr.splice(i, 0, Math.random());
+    }), on.click(function (ev) {
+        return arr.splice(i, 1);
+    }), n);
+}), new Promise(function (resolve, reject) {
+    setTimeout(function () {
+        return resolve('Three seconds have passed!');
+    }, 3000);
+}), new MyClass('this is a custom object rendering'), function () {
+    return state.keystroke && 'You pressed ' + state.keystroke + '!';
+});
+
+on.keyup.backspace(function () {
+    return state.keystroke = 'backspace';
+})(document);
+on.keydown.s(function () {
+    return state.keystroke = 's';
+})(document);
+on.keydown.shift.s(function () {
+    return state.keystroke = 'shift-s';
+})(document);
+
+install(content, document.body);
 
 })));
+//# sourceMappingURL=test.build.js.map

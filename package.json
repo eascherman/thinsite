@@ -2,11 +2,11 @@
   "name": "thinsite",
   "version": "0.0.6",
   "description": "",
-  "main": "attributelocation.js",
+  "main": "not-a-node-program.js",
   "scripts": {
-    "test": "rollup -c rollup.config.test.js",
-    "build": "rollup -c",
-    "build-test": "rollup -c rollup.config.test.js"
+    "build": "npm run build-test & npm run build-standalone",
+    "build-test": "cd test & rollup -c rollup.config.test.js",
+    "build-standalone": "cd standalone & rollup -c rollup.config.js & rollup -c rollup.config.min.js"
   },
   "author": "Ernie Ascherman",
   "license": "MIT",

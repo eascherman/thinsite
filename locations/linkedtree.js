@@ -1,4 +1,7 @@
 
+// liked a linked list but it can have a tree of children as well
+// used to manage locations of content in the DOM
+
 export default class LinkedTree {
     constructor(parent) {
         this.parent = parent;

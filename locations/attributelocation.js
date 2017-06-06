@@ -1,6 +1,6 @@
 
-import {CompiledHtmlAttribute} from './compiler/attribute.js';
-import {onChange} from './changedetection.js';
+import {CompiledHtmlAttribute} from '../compiler/attribute.js';
+import {onChange} from '../changedetection.js';
 
 
 export default class AttributeLocation {

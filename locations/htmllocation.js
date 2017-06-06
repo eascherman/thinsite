@@ -1,10 +1,10 @@
 
 import LinkedTree from './linkedtree.js';
-import getCompiledHtmlBundle from './compiler/html.js';
+import getCompiledHtmlBundle from '../compiler/html.js';
 import AttributeLocation from './attributelocation.js';
-import {CompiledHtmlElement} from './compiler/element.js';
-import {Bundle} from './bundle.js';
-import {onChange} from './changedetection.js';
+import {CompiledHtmlElement} from '../compiler/element.js';
+import {Bundle} from '../bundle.js';
+import {onChange} from '../changedetection.js';
 
 
 export default class HtmlLocation extends LinkedTree {
