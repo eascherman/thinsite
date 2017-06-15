@@ -204,13 +204,19 @@ function alerterProperty(obj, prop) {
     var value = obj[prop];
     var gs = getterSetter();
     gs.set(value);
-    Object.defineProperty(obj, prop, gs);
+    Object.defineProperty(obj, prop, {
+        get: gs.get,
+        set: gs.set
+    });
     return gs;
 }
 
 function relativeProperty(obj, prop, getter, setter) {
     var gs = relativeGetterSetter(getter, setter);
-    Object.defineProperty(obj, prop, gs);
+    Object.defineProperty(obj, prop, {
+        get: gs.get,
+        set: gs.set
+    });
     return gs;
 }
 
@@ -1157,12 +1163,12 @@ function arrInstall(arr) {
                 arr;
                 var instPos = installations[pos];
                 var inst;
-                if (instPos) inst = instPos.insertContent(item);else inst = loc.installChild(item, el);
+                if (instPos) inst = instPos.insertContent(item);else inst = loc.installChild(item, el, loc.namespace);
                 installations.splice(pos, 0, inst);
             });
 
             arr.forEach(function (item) {
-                var inst = loc.installChild(item, el);
+                var inst = loc.installChild(item, el, loc.namespace);
                 installations.push(inst);
             });
         }

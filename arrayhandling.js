@@ -123,12 +123,12 @@ export function arrInstall(arr) {
                 if (instPos)
                     inst = instPos.insertContent(item);
                 else
-                    inst = loc.installChild(item, el);
+                    inst = loc.installChild(item, el, loc.namespace);
                 installations.splice(pos, 0, inst);
             });
 
             arr.forEach(function(item) {
-                var inst = loc.installChild(item, el);
+                var inst = loc.installChild(item, el, loc.namespace);
                 installations.push(inst);
             });
         }

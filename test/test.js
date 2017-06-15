@@ -16,6 +16,17 @@ var state = {};             // an object we'll attach mutable values to
 obs(state, 'text');         // let the change detector know the text property of the state object is mutable
 obs(state, 'keystroke');
 
+var dots = [{
+    x: 10, y:20
+}, {
+    x: 20, y:10
+}];
+function addDot() {
+    dots.push({
+        x: Math.random() * 100,
+        y: Math.random() * 100
+    });
+}
 
 var content = bundle        // the bundle template literal tag is used to create markup content
     `<h3>Text: ${() => state.text}</h3>
@@ -44,7 +55,15 @@ var content = bundle        // the bundle template literal tag is used to create
     
     <h3>Keystroke Listeners</h3>
     Try pressing backspace, s, or shift-s!
-    <div>${() => state.keystroke && `You pressed ${state.keystroke}!`}</div>`;
+    <div>${() => state.keystroke && `You pressed ${state.keystroke}!`}</div>
+    
+    <h3>Map / SVG</h3>
+    <svg height="100" width="100">
+        ${map(dots, dot => bundle
+            `<circle cx="${dot.x}" cy="${dot.y}" r="3" fill="green"></circle>`    
+        )}
+    </svg>
+    <button ${on.click(addDot)}>add dot</button>`;
 
 on.keyup.backspace(() => state.keystroke = 'backspace')(document);
 on.keydown.s(() => state.keystroke = 's')(document);

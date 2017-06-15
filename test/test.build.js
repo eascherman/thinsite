@@ -204,13 +204,19 @@ function alerterProperty(obj, prop) {
     var value = obj[prop];
     var gs = getterSetter();
     gs.set(value);
-    Object.defineProperty(obj, prop, gs);
+    Object.defineProperty(obj, prop, {
+        get: gs.get,
+        set: gs.set
+    });
     return gs;
 }
 
 function relativeProperty(obj, prop, getter, setter) {
     var gs = relativeGetterSetter(getter, setter);
-    Object.defineProperty(obj, prop, gs);
+    Object.defineProperty(obj, prop, {
+        get: gs.get,
+        set: gs.set
+    });
     return gs;
 }
 
@@ -1173,12 +1179,12 @@ function arrInstall(arr) {
                 arr;
                 var instPos = installations[pos];
                 var inst;
-                if (instPos) inst = instPos.insertContent(item);else inst = loc.installChild(item, el);
+                if (instPos) inst = instPos.insertContent(item);else inst = loc.installChild(item, el, loc.namespace);
                 installations.splice(pos, 0, inst);
             });
 
             arr.forEach(function (item) {
-                var inst = loc.installChild(item, el);
+                var inst = loc.installChild(item, el, loc.namespace);
                 installations.push(inst);
             });
         }
@@ -1189,8 +1195,9 @@ function map(arr, transform) {
     return arrInstall(bindMap(arr, transform));
 }
 
-var _templateObject = taggedTemplateLiteral(['<h3>Text: ', '</h3>\n    <input type="text" ', ' />\n\n    <h3>Array</h3>\n    <ol>\n        ', '\n    </ol>\n    \n    <h3>Promise</h3>\n    <div>\n        ', '\n    </div>\n\n    <h3>Custom Object Rendering</h3>\n    ', '\n    \n    <h3>Keystroke Listeners</h3>\n    Try pressing backspace, s, or shift-s!\n    <div>', '</div>'], ['<h3>Text: ', '</h3>\n    <input type="text" ', ' />\n\n    <h3>Array</h3>\n    <ol>\n        ', '\n    </ol>\n    \n    <h3>Promise</h3>\n    <div>\n        ', '\n    </div>\n\n    <h3>Custom Object Rendering</h3>\n    ', '\n    \n    <h3>Keystroke Listeners</h3>\n    Try pressing backspace, s, or shift-s!\n    <div>', '</div>']);
+var _templateObject = taggedTemplateLiteral(['<h3>Text: ', '</h3>\n    <input type="text" ', ' />\n\n    <h3>Array</h3>\n    <ol>\n        ', '\n    </ol>\n    \n    <h3>Promise</h3>\n    <div>\n        ', '\n    </div>\n\n    <h3>Custom Object Rendering</h3>\n    ', '\n    \n    <h3>Keystroke Listeners</h3>\n    Try pressing backspace, s, or shift-s!\n    <div>', '</div>\n    \n    <h3>Map / SVG</h3>\n    <svg height="100" width="100">\n        ', '\n    </svg>\n    <button ', '>add dot</button>'], ['<h3>Text: ', '</h3>\n    <input type="text" ', ' />\n\n    <h3>Array</h3>\n    <ol>\n        ', '\n    </ol>\n    \n    <h3>Promise</h3>\n    <div>\n        ', '\n    </div>\n\n    <h3>Custom Object Rendering</h3>\n    ', '\n    \n    <h3>Keystroke Listeners</h3>\n    Try pressing backspace, s, or shift-s!\n    <div>', '</div>\n    \n    <h3>Map / SVG</h3>\n    <svg height="100" width="100">\n        ', '\n    </svg>\n    <button ', '>add dot</button>']);
 var _templateObject2 = taggedTemplateLiteral(['<li>\n                <button ', '>+</button>\n                <button ', '>-</button>\n                ', '\n            </li>'], ['<li>\n                <button ', '>+</button>\n                <button ', '>-</button>\n                ', '\n            </li>']);
+var _templateObject3 = taggedTemplateLiteral(['<circle cx="', '" cy="', '" r="3" fill="green"></circle>'], ['<circle cx="', '" cy="', '" r="3" fill="green"></circle>']);
 
 var MyClass = function () {
     function MyClass(message) {
@@ -1212,6 +1219,18 @@ var state = {}; // an object we'll attach mutable values to
 re(state, 'text'); // let the change detector know the text property of the state object is mutable
 re(state, 'keystroke');
 
+var dots = [{
+    x: 10, y: 20
+}, {
+    x: 20, y: 10
+}];
+function addDot() {
+    dots.push({
+        x: Math.random() * 100,
+        y: Math.random() * 100
+    });
+}
+
 var content = bundle // the bundle template literal tag is used to create markup content
 (_templateObject, function () {
     return state.text;
@@ -1229,7 +1248,9 @@ var content = bundle // the bundle template literal tag is used to create markup
     }, 3000);
 }), new MyClass('this is a custom object rendering'), function () {
     return state.keystroke && 'You pressed ' + state.keystroke + '!';
-});
+}, map(dots, function (dot) {
+    return bundle(_templateObject3, dot.x, dot.y);
+}), on.click(addDot));
 
 on.keyup.backspace(function () {
     return state.keystroke = 'backspace';

@@ -227,13 +227,19 @@ export function alerterProperty(obj, prop) {
     var value = obj[prop];
     var gs = getterSetter();
     gs.set(value);
-    Object.defineProperty(obj, prop, gs);
+    Object.defineProperty(obj, prop, {
+        get: gs.get,
+        set: gs.set
+    });
     return gs;
 };
 
 
 export function relativeProperty(obj, prop, getter, setter) {
     var gs = relativeGetterSetter(getter, setter);
-    Object.defineProperty(obj, prop, gs);
+    Object.defineProperty(obj, prop, {
+        get: gs.get,
+        set: gs.set
+    });
     return gs;
 };
